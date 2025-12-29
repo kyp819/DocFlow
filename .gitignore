@@ -1,0 +1,42 @@
+# Maven target directory
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.restore
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Avoid committing database credentials and keys
+.env
+
+# Eclipse metadata
+.metadata
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~
+.nib
+local.properties
+.settings/
+.loadpath
+.project
+.classpath
+
+# IntelliJ IDEA metadata
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Visual Studio Code metadata
+.vscode/
+
+# Local Maven folder if downloaded
+maven/
