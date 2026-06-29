@@ -51,21 +51,8 @@ public class DoctorAvailabilityServiceImpl implements DoctorAvailabilityService 
     public AvailabilityResponse createAvailability(AvailabilityRequest request, String doctorEmail) {
         Doctor doctor = getDoctorOrThrow(doctorEmail);
 
-        if (request.getStartTime().isAfter(request.getEndTime()) || request.getStartTime().equals(request.getEndTime())) {
-            throw new BadRequestException("Start time must be before end time");
-        }
-
-        // Check for overlaps with existing active availabilities on the same day
-        List<DoctorAvailability> existingList = availabilityRepository.findByDoctorIdAndActiveTrue(doctor.getId());
-        for (DoctorAvailability existing : existingList) {
-            if (existing.getDayOfWeek() == request.getDayOfWeek()) {
-                boolean overlaps = request.getStartTime().isBefore(existing.getEndTime()) 
-                        && request.getEndTime().isAfter(existing.getStartTime());
-                if (overlaps) {
-                    throw new ConflictException("Availability overlaps with an existing slot on " + request.getDayOfWeek());
-                }
-            }
-        }
+        validateTimeRange(request.getStartTime(), request.getEndTime());
+        validateNoOverlapWithExisting(doctor.getId(), request, null);
 
         DoctorAvailability availability = DoctorAvailability.builder()
                 .doctor(doctor)
@@ -91,21 +78,8 @@ public class DoctorAvailabilityServiceImpl implements DoctorAvailabilityService 
             throw new AccessDeniedException("You are not authorized to update this availability");
         }
 
-        if (request.getStartTime().isAfter(request.getEndTime()) || request.getStartTime().equals(request.getEndTime())) {
-            throw new BadRequestException("Start time must be before end time");
-        }
-
-        // Check for overlaps with other active availabilities of the same doctor on the same day (excluding itself)
-        List<DoctorAvailability> existingList = availabilityRepository.findByDoctorIdAndActiveTrue(doctor.getId());
-        for (DoctorAvailability existing : existingList) {
-            if (!existing.getId().equals(id) && existing.getDayOfWeek() == request.getDayOfWeek()) {
-                boolean overlaps = request.getStartTime().isBefore(existing.getEndTime()) 
-                        && request.getEndTime().isAfter(existing.getStartTime());
-                if (overlaps) {
-                    throw new ConflictException("Availability overlaps with an existing slot on " + request.getDayOfWeek());
-                }
-            }
-        }
+        validateTimeRange(request.getStartTime(), request.getEndTime());
+        validateNoOverlapWithExisting(doctor.getId(), request, id);
 
         availability.setDayOfWeek(request.getDayOfWeek());
         availability.setStartTime(request.getStartTime());
@@ -147,5 +121,56 @@ public class DoctorAvailabilityServiceImpl implements DoctorAvailabilityService 
         return list.stream()
                 .map(dtoMapper::toAvailabilityResponse)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Validates that start time is before end time.
+     *
+     * @param startTime the availability start time
+     * @param endTime the availability end time
+     * @throws BadRequestException if start time is not before end time
+     */
+    private void validateTimeRange(java.time.LocalTime startTime, java.time.LocalTime endTime) {
+        if (startTime.isAfter(endTime) || startTime.equals(endTime)) {
+            throw new BadRequestException("Start time must be before end time");
+        }
+    }
+
+    /**
+     * Validates that a new availability slot does not overlap with existing slots.
+     *
+     * <p>Checks the doctor's active availabilities for the same day of week.
+     * When updating (excludeId is not null), the existing slot with that ID is excluded from the check.</p>
+     *
+     * @param doctorId the doctor's ID
+     * @param request the availability request containing day and time range
+     * @param excludeId the availability ID to exclude from overlap check (null for create operations)
+     * @throws ConflictException if an overlapping slot exists on the same day
+     */
+    private void validateNoOverlapWithExisting(Long doctorId, AvailabilityRequest request, Long excludeId) {
+        List<DoctorAvailability> existingList = availabilityRepository.findByDoctorIdAndActiveTrue(doctorId);
+
+        boolean hasOverlap = existingList.stream()
+                .filter(existing -> excludeId == null || !existing.getId().equals(excludeId))
+                .filter(existing -> existing.getDayOfWeek() == request.getDayOfWeek())
+                .anyMatch(existing -> hasTimeOverlap(request.getStartTime(), request.getEndTime(), existing.getStartTime(), existing.getEndTime()));
+
+        if (hasOverlap) {
+            throw new ConflictException("Availability overlaps with an existing slot on " + request.getDayOfWeek());
+        }
+    }
+
+    /**
+     * Checks if two time ranges overlap.
+     *
+     * @param newStart the start time of new slot
+     * @param newEnd the end time of new slot
+     * @param existingStart the start time of existing slot
+     * @param existingEnd the end time of existing slot
+     * @return true if the slots overlap, false otherwise
+     */
+    private boolean hasTimeOverlap(java.time.LocalTime newStart, java.time.LocalTime newEnd,
+                                    java.time.LocalTime existingStart, java.time.LocalTime existingEnd) {
+        return newStart.isBefore(existingEnd) && newEnd.isAfter(existingStart);
     }
 }
