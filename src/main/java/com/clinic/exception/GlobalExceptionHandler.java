@@ -33,7 +33,11 @@ import java.util.Map;
  *   <li>Unexpected runtime exceptions</li>
  * </ul>
  * </p>
- */\n@RestControllerAdvice\npublic class GlobalExceptionHandler {\n\n    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+ */
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException ex, HttpServletRequest request) {

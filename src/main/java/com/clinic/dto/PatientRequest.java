@@ -35,6 +35,3 @@ public class PatientRequest {
     @Size(min = 10, max = 20, message = "Emergency contact must be between 10 and 20 characters")
     private String emergencyContact;
 }
-
-    private String emergencyContact;
-}
